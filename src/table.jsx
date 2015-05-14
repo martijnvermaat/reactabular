@@ -12,6 +12,23 @@ var React = require('react/addons');
 var cx = require('classnames');
 var formatters = require('./formatters');
 var update = React.addons.update;
+var EventListener = require('./EventListener');
+
+
+var getOffset = function(elem) {
+    var rect = elem.getBoundingClientRect();
+    var docElem = elem.ownerDocument.documentElement;
+
+    return {
+        top: rect.top + window.pageYOffset - docElem.clientTop,
+        left: rect.left + window.pageXOffset - docElem.clientLeft
+    };
+};
+
+
+var getDimension = function(elem, dimension) {
+    return parseFloat(window.getComputedStyle(elem, null).getPropertyValue(dimension)) || 0;
+};
 
 
 module.exports = React.createClass({
@@ -32,6 +49,59 @@ module.exports = React.createClass({
         };
     },
 
+    getInitialState() {
+        return {fixHeader: false};
+    },
+
+    componentDidMount() {
+        var headers;
+
+        // Cache some DOM references.
+        this.table = React.findDOMNode(this);
+        headers = this.table.getElementsByTagName('thead')[0].getElementsByTagName('tr');
+        this.header = headers[0];
+        this.headerCopy = headers[1];
+
+        this.headerCells = this.header.getElementsByTagName('th');
+        this.headerCopyCells = this.headerCopy.getElementsByTagName('th');
+
+        this.onWindowScrollListener = EventListener.listen(window, 'scroll', this.updateHeader);
+    },
+
+    componentWillUnmount() {
+        this.onWindowScrollListener.remove();
+    },
+
+    componentDidUpdate() {
+        this.updateHeaderWidth();
+    },
+
+    updateHeader() {
+        var offset = getOffset(this.table);
+        var scrolledPastTop = window.pageYOffset > offset.top;
+        var notScrolledPastBottom = window.pageYOffset < (offset.top + getDimension(this.table, 'height') - getDimension(this.header, 'height'));
+
+        var fixHeader = scrolledPastTop && notScrolledPastBottom;
+
+        if (this.state.fixHeader !== fixHeader) {
+            this.setState({fixHeader: fixHeader});
+        }
+    },
+
+    updateHeaderWidth() {
+        var width;
+
+        for (var i = 0; i < this.headerCopyCells.length; i++) {
+            width = this.state.fixHeader ? getDimension(this.headerCopyCells[i], 'width') : null;
+            this.headerCells[i].style['min-width'] = width;
+            this.headerCells[i].style['max-width'] = width;
+        }
+
+        if (this.state.fixHeader) {
+            this.header.style.width = getDimension(this.headerCopy, 'width');
+        }
+    },
+
     render() {
         var header = this.props.header;
         var data = this.props.data;
@@ -45,23 +115,28 @@ module.exports = React.createClass({
             }
         });
 
+        var headerCells = () => columns.map((column, i) => {
+            var columnHeader = transform(header, (result, v, k) => {
+                result[k] = k.indexOf('on') === 0? v.bind(null, column): v;
+            });
+
+            return (
+                <th
+                    key={i + '-header'}
+                    className={cx(column.classes)}
+                    {...columnHeader}
+                >{column.header}</th>
+            );
+        });
+
         return (
             <table {...props}>
                 <thead>
-                    <tr>
-                        {columns.map((column, i) => {
-                            var columnHeader = transform(header, (result, v, k) => {
-                                result[k] = k.indexOf('on') === 0? v.bind(null, column): v;
-                            });
-
-                            return (
-                                <th
-                                    key={i + '-header'}
-                                    className={cx(column.classes)}
-                                    {...columnHeader}
-                                >{column.header}</th>
-                            );
-                        })}
+                    <tr style={{position: this.state.fixHeader ? 'fixed' : 'static', top: 0}}>
+                        {headerCells()}
+                    </tr>
+                    <tr style={{display: this.state.fixHeader ? '' : 'none'}}>
+                        {headerCells()}
                     </tr>
                 </thead>
                 <tbody>

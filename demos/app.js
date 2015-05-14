@@ -15,11 +15,6 @@ module.exports = React.createClass({
         return (
             <div className='pure-g'>
                 <Fork className='right' project='bebraw/reactabular' />
-                <header className='pure-u-1'>
-                    <h1>Reactabular</h1>
-
-                    <div className='description'>Spectacular tables for React.js</div>
-                </header>
                 <article className='pure-u-1'>
                     <section className='demonstration'>
                         <div className='description'>
