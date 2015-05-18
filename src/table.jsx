@@ -27,6 +27,7 @@ var getOffset = function(elem) {
 
 
 var getDimension = function(elem, dimension) {
+    // http://stackoverflow.com/questions/20926551/recommended-way-of-making-react-component-div-draggable#comment46737351_20927899
     return parseFloat(window.getComputedStyle(elem, null).getPropertyValue(dimension)) || 0;
 };
 
